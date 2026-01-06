@@ -5,7 +5,9 @@ node_modules/
 
 # Expo
 .expo/
+.expo-shared/
 dist/
+build/
 web-build/
 expo-env.d.ts
 
@@ -22,6 +24,9 @@ expo-env.d.ts
 .metro-health-check*
 
 # debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 npm-debug.*
 yarn-debug.*
 yarn-error.*
@@ -41,3 +46,31 @@ app-example
 # generated native folders
 /ios
 /android
+
+#Python
+venv/
+backend/venv/
+.venv/
+_pycahe_/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+#Python build / cache
+pip-wheel-metadata/
+
+#IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+#OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+#Git
+*.orig

@@ -69,7 +69,7 @@ def add_car():
 
     return jsonify({"message": "Car added successfully"}), 201
 
-
+#----------SHOW MY CARS----------
 @auth_bp.route('/my-cars', methods=['POST'])
 def my_cars():
     data = request.get_json()
@@ -295,7 +295,7 @@ def reset_password():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    user.password_hash = new_password
+    user.password_hash = generate_password_hash(new_password)
     reset_record.is_used = True
     db.session.commit()
 
