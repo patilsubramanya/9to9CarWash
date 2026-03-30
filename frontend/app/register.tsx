@@ -24,7 +24,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
 
-  const API = "http://192.168.31.140:5000";
+  const API = "http://192.168.31.81:5000";
 
   // Fade-In animation
   const fadeAnim = new Animated.Value(0);
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
         <View style={styles.card}>
           {/* Logo */}
           <Image
-            source={require("../../assets/images/logo.jpeg")}
+            source={require("../assets/images/logo.jpeg")}
             style={styles.logo}
           />
 

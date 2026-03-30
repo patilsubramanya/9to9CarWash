@@ -1,64 +1,85 @@
-// import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-// import { Stack } from 'expo-router';
-// import { StatusBar } from 'expo-status-bar';
-// import 'react-native-reanimated';
-
-// import { useColorScheme } from '@/hooks/use-color-scheme';
-
-// export const unstable_settings = {
-//   anchor: '(tabs)',
-// };
-
-// export default function RootLayout() {
-//   const colorScheme = useColorScheme();
-
-//   return (
-//     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-//       <Stack>
-//         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-//         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-//       </Stack>
-//       <StatusBar style="auto" />
-//     </ThemeProvider>
-//   );
-// import { Stack } from "expo-router";
-// import { View } from "react-native";
-
-// export default function RootLayout() {
-// return (
-//   <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
-//     <Stack screenOptions={{ headerShown: false }} />
-//   </View>
-// );
-// }
-// }
-
-import { Slot, useRouter, Stack } from "expo-router";
-import { useEffect } from "react";
-import { View } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
+import { jwtDecode } from "jwt-decode";
 
 export default function RootLayout() {
+  console.log("New code running");
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkToken = async () => {
-      const token = await SecureStore.getItemAsync("token");
-      if (!token) {
-        router.replace("/"); // go to login
-      } else {
-        router.replace("/(tabs)/home"); // go to home
+      try {
+        const token = await SecureStore.getItemAsync("token");
+
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const decoded: any = jwtDecode(token);
+
+        if (!decoded?.role) {
+          await SecureStore.deleteItemAsync("token");
+          setLoading(false);
+          return;
+        }
+
+        setTimeout(() => {
+          if (decoded.role === "customer") {
+            router.replace("/(tabs)/home");
+          } else if (decoded.role === "admin") {
+            router.replace("/(tabs)/adminhome");
+          } else if (decoded.role === "washer") {
+            router.replace("/(tabs)/washerhome");
+          } else if (decoded.role === "supervisor") {
+            router.replace("/(tabs)/supervisorhome");
+          }
+        }, 100);
+      } catch (err) {
+        await SecureStore.deleteItemAsync("token");
       }
+
+      setLoading(false);
     };
 
     checkToken();
   }, []);
 
-  // return <Slot />;   // load nested screens
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
-    // <Slot />
-    <View style={{ flex: 1, backgroundColor: "#D3D3D3" }}>
-      <Stack screenOptions={{ headerShown: false }} />
-    </View>
+    <SafeAreaProvider>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: "#ffffff" },
+          headerTintColor: "#111827",
+          headerTitleStyle: { fontWeight: "600" },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+
+        <Stack.Screen name="user-details" options={{ title: "User Details", presentation: "card" }} />
+        <Stack.Screen name="admin-car-calendar" options={{ title: "Car Calendar", presentation: "card" }} />
+        <Stack.Screen name="add-car" options={{ title: "Add Car", presentation: "card" }} />
+        <Stack.Screen name="choose-service" options={{ title: "Choose Service", presentation: "card" }} />
+        <Stack.Screen name="otp" options={{ title: "OTP Verification", presentation: "card" }} />
+        <Stack.Screen name="register" options={{ title: "Register", presentation: "card" }} />
+        <Stack.Screen name="forgot-password" options={{ title: "Forgot Password", presentation: "card" }} />
+        <Stack.Screen name="reset-password" options={{ title: "Reset Password", presentation: "card" }} />
+        <Stack.Screen name="thankyou" options={{ title: "Thank You", presentation: "card" }} />
+        <Stack.Screen name="view-subscription" options={{ title: "My Subscriptions", presentation: "card" }} />
+      </Stack>
+    </SafeAreaProvider>
   );
 }

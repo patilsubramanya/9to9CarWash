@@ -1,160 +1,489 @@
-import { useEffect, useState, useCallback } from "react";
-import { View, FlatList, StyleSheet, Linking } from "react-native";
-import { Text, TextInput, Card, ActivityIndicator } from "react-native-paper";
+import { useState, useEffect, useCallback } from "react";
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import axios from "axios";
-import { useLocalSearchParams } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { SafeAreaView } from "react-native-safe-area-context";
+import ScreenContainer from "@/components/ui/ScreenContainer";
+import Card from "@/components/ui/Card";
+import PrimaryButton from "@/components/ui/PrimaryButton";
 
 export default function AdminHome() {
-  const { token } = useLocalSearchParams();
+  const [dashboard, setDashboard] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  const fetchUsers = async () => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [staffName, setStaffName] = useState("");
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffPhone, setStaffPhone] = useState("");
+  const [staffPassword, setStaffPassword] = useState("");
+  const [staffRole, setStaffRole] = useState("washer");
+  const [creating, setCreating] = useState(false);
+
+  const fetchDashboard = async (token: string) => {
+    const res = await axios.get(
+      "http://192.168.31.81:5000/admin/dashboard",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setDashboard(res.data);
+  };
+  console.log("Dashboard data:", dashboard);
+
+  const fetchUsers = async (token: string) => {
+    const res = await axios.get(
+      `http://192.168.31.81:5000/admin/users?q=${search}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setUsers(res.data.users);
+  };
+
+  const loadData = useCallback(async () => {
     try {
-      setLoading(true);
+      const token = await SecureStore.getItemAsync("token");
+      if (!token) return;
 
-      const res = await axios.get(
-        `http://192.168.31.140:5000/admin/users?q=${search}`,
+      await fetchDashboard(token);
+      await fetchUsers(token);
+    } catch (err: any) {
+      console.log("Admin load error:", err.response?.data || err.message);
+    }
+  }, [search]);
+
+  const handleLogout = async () => {
+    await SecureStore.deleteItemAsync("token");
+    await SecureStore.deleteItemAsync("role");
+    router.replace("/");
+  };
+
+  const createStaff = async () => {
+    if (!staffName || !staffEmail || !staffPhone || !staffPassword) {
+      Alert.alert("Error", "Please fill all fields");
+      return;
+    }
+
+    try {
+      setCreating(true);
+      const token = await SecureStore.getItemAsync("token");
+
+      await axios.post(
+        "http://192.168.31.81:5000/admin/create-staff",
+        {
+          name: staffName,
+          email: staffEmail,
+          phone: staffPhone,
+          password: staffPassword,
+          role: staffRole,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setUsers(res.data.users);
+      Alert.alert("Success", "Staff created successfully");
+
+      setStaffName("");
+      setStaffEmail("");
+      setStaffPhone("");
+      setStaffPassword("");
+      setStaffRole("washer");
+      setModalVisible(false);
+
+      loadData();
     } catch (err: any) {
-      console.log("Admin fetch error:", err.response?.data || err.message);
+      Alert.alert("Error", err.response?.data?.error || "Something went wrong");
     } finally {
-      setLoading(false);
+      setCreating(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [search]);
+    loadData();
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchUsers(); // Auto refresh when page comes into focus
-    }, [token])
-  );
+    const interval = setInterval(() => {
+      loadData();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <View style={styles.page}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Admin Dashboard</Text>
-      </View>
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScreenContainer>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.heading}>Admin Dashboard</Text>
+                <Text style={styles.subHeading}>System Overview</Text>
+              </View>
 
-      {/* Search input */}
-      <TextInput
-        placeholder="Search users..."
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-        mode="outlined"
-      />
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={users}
-          onRefresh={fetchUsers}
-          refreshing={loading}
-          keyExtractor={(item) => item.user_id.toString()}
-          renderItem={({ item }) => (
-            <Card style={styles.card} elevation={3}>
-              <Card.Content>
-                <Text style={styles.name}>{item.name}</Text>
+            {dashboard && (
+              <View style={styles.cardContainer}>
+                <View style={{ width: "48%" }}>
+                  <Stat label="Customers" value={dashboard.total_customers} />
+                </View>
 
-                <Text
-                  style={styles.phone}
-                  onPress={() => Linking.openURL(`tel:${item.phone}`)}
+                <TouchableOpacity
+                  style={{ width: "48%" }}
+                  activeOpacity={0.8}
+                  onPress={() =>{
+                    router.push(`/staff-list?role=washer`);
+                    //   {
+                    //   pathname: "/staff-list",
+                    //   params: { role: "washer" },
+                    // })
+                  }}
                 >
-                  {item.phone}
-                </Text>
+                  <Stat label="Washers" value={dashboard.total_washers} />
+                </TouchableOpacity>
 
-                <View style={styles.divider} />
+                <TouchableOpacity
+                  style={{ width: "48%" }}
+                  activeOpacity={0.8}
+                  onPress={() =>{
+                    router.push(`/staff-list?role=supervisor`);
+                    //   {
+                    //   pathname: "/staff-list",
+                    //   params: { role: "supervisor" },
+                    // })
+                  }}
+                >
+                  <Stat label="Supervisors" value={dashboard.total_supervisors} />
+                </TouchableOpacity>
 
-                <Text style={styles.carTitle}>Cars:</Text>
-                <Text style={styles.carList}>
-                  {item.cars.length > 0
-                    ? item.cars.join(", ")
-                    : "No Cars Added"}
-                </Text>
-              </Card.Content>
-            </Card>
-          )}
-        />
-      )}
-    </View>
+                <View style={{ width: "48%" }}>
+                  <Stat label="Total Jobs Today" value={dashboard.today_total_jobs} />
+                </View>
+                {/* <View style={{ width: "48%" }}>
+                  <Stat label="Pending Wash" value={dashboard.today_pending_wash} />
+                </View> */}
+                <TouchableOpacity
+                  style={{ width: "48%" }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/wash-list",
+                      params: { status: "PENDING" },
+                    })
+                  }
+                >
+                  <Stat label="Pending Wash" value={dashboard.today_pending_wash} />
+                </TouchableOpacity>
+                {/* <View style={{ width: "48%" }}>
+                  <Stat label="Pending Approval" value={dashboard.today_pending_approval} />
+                </View> */}
+                <TouchableOpacity
+                  style={{ width: "48%" }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/wash-list",
+                      params: { status: "PENDING_APPROVAL" },
+                    })
+                  }
+                >
+                  <Stat label="Pending Approval" value={dashboard.today_pending_approval} />
+                </TouchableOpacity>
+                {/* <View style={{ width: "48%" }}>
+                  <Stat label="Approved Washed" value={dashboard.today_approved_washed} />
+                </View> */}
+                <TouchableOpacity
+                  style={{ width: "48%" }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/wash-list",
+                      params: { status: "APPROVED_WASHED" },
+                    })
+                  }
+                >
+                  <Stat label="Approved Washed" value={dashboard.today_approved_washed} />
+                </TouchableOpacity>
+                {/* <View style={{ width: "48%" }}>
+                  <Stat label="Approved Not Washed" value={dashboard.today_approved_not_washed} />
+                </View> */}
+                <TouchableOpacity
+                  style={{ width: "48%" }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/wash-list",
+                      params: { status: "APPROVED_NOT_WASHED" },
+                    })
+                  }
+                >
+                  <Stat label="Approved Not Washed" value={dashboard.today_approved_not_washed} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <PrimaryButton
+              title="Create Washer / Supervisor"
+              onPress={() => setModalVisible(true)}
+            />
+
+            <TextInput
+              placeholder="Search Users"
+              placeholderTextColor="#666"
+              value={search}
+              onChangeText={setSearch}
+              style={styles.search}
+            />
+
+            {users.map((item) => (
+              <TouchableOpacity
+                key={item.user_id}
+                style={styles.userCard}
+                activeOpacity={0.7}
+                onPress={() =>
+                  router.push(`/user-details?userId=${item.user_id}`)
+                  //   {
+                  //   pathname: "/user-details",
+                  //   params: { userId: item.user_id },
+                  // }
+                // )
+                }
+              >
+                <View style={styles.rowBetween}>
+                  <Text style={styles.userName}>{item.name}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <Modal visible={modalVisible} animationType="slide" transparent>
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContainer}>
+                  <Text style={styles.modalTitle}>Create Staff</Text>
+
+                  <TextInput
+                    placeholder="Full Name"
+                    placeholderTextColor="#666"
+                    value={staffName}
+                    onChangeText={setStaffName}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    placeholder="Email"
+                    placeholderTextColor="#666"
+                    value={staffEmail}
+                    onChangeText={setStaffEmail}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    placeholder="Phone"
+                    placeholderTextColor="#666"
+                    value={staffPhone}
+                    onChangeText={setStaffPhone}
+                    style={styles.input}
+                  />
+
+                  <TextInput
+                    placeholder="Password"
+                    placeholderTextColor="#666"
+                    secureTextEntry
+                    value={staffPassword}
+                    onChangeText={setStaffPassword}
+                    style={styles.input}
+                  />
+
+                  <View style={styles.roleContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.roleBtn,
+                        staffRole === "washer" && styles.roleSelected,
+                      ]}
+                      onPress={() => setStaffRole("washer")}
+                    >
+                      <Text>Washer</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.roleBtn,
+                        staffRole === "supervisor" && styles.roleSelected,
+                      ]}
+                      onPress={() => setStaffRole("supervisor")}
+                    >
+                      <Text>Supervisor</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.modalCreateBtn}
+                    onPress={createStaff}
+                    disabled={creating}
+                  >
+                    <Text style={{ color: "#fff" }}>
+                      {creating ? "Creating..." : "Create"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => setModalVisible(false)}>
+                    <Text style={{ marginTop: 10, color: "red" }}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          </ScrollView>
+        </ScreenContainer>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    // <Card style={{ width: "48%" }}>
+    <Card>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#e6e6e6",
-    padding: 12,
-  },
-
-  header: {
-    backgroundColor: "#007bff",
-    paddingVertical: 18,
-    paddingHorizontal: 15,
-    borderRadius: 12,
-    marginBottom: 15,
-    elevation: 4,
-  },
-  headerText: {
+  heading: {
     fontSize: 22,
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-
-  search: {
-    marginBottom: 15,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 5,
+    fontWeight: "700",
     marginBottom: 12,
   },
 
-  name: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 4,
-    color: "#333",
+  subHeading: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 4,
   },
 
-  phone: {
-    fontSize: 16,
-    color: "#007bff",
-    textDecorationLine: "underline",
-    marginBottom: 8,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 25,
   },
 
-  divider: {
-    height: 1,
-    backgroundColor: "#ddd",
-    marginVertical: 10,
+  logoutBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "#ef4444",
+    borderRadius: 12,
   },
 
-  carTitle: {
+  logoutText: {
+    color: "white",
     fontWeight: "600",
-    fontSize: 16,
-    marginBottom: 3,
+    fontSize: 14,
   },
 
-  carList: {
-    color: "#555",
-    fontSize: 15,
-    marginBottom: 5,
+  cardContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  statValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+  },
+
+  statLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 6,
+  },
+
+  search: {
+    backgroundColor: "#ffffff",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+    elevation: 2,
+  },
+
+  userCard: {
+    backgroundColor: "#ffffff",
+    padding: 18,
+    borderRadius: 18,
+    marginBottom: 14,
+    elevation: 2,
+  },
+
+  userName: {
+    fontWeight: "600",
+  },
+
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  modalContainer: {
+    width: "90%",
+    backgroundColor: "#ffffff",
+    padding: 20,
+    borderRadius: 20,
+    elevation: 5,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: "#f3f4f6",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+
+  roleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  roleBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderWidth: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 14,
+    alignItems: "center",
+    marginHorizontal: 6,
+  },
+
+  roleSelected: {
+    backgroundColor: "#007bff",
+  },
+
+  modalCreateBtn: {
+    backgroundColor: "#28a745",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
   },
 });
+

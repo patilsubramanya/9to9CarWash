@@ -10,20 +10,14 @@ from utils import verify_jwt
 
 auth_bp = Blueprint('auth_bp', __name__)
 
-# (OPTIONAL) Twilio Setup - replace with your credentials
-# from twilio.rest import Client
-# account_sid = "YOUR_TWILIO_SID"
-# auth_token = "YOUR_TWILIO_AUTH_TOKEN"
-# twilio_phone = "+1234567890"
-# client = Client(account_sid, auth_token)
-
-
 #-----------------GREETINGS-----------------
 @auth_bp.route('/me', methods=['POST'])
 def get_profile():
-    data = request.get_json()
-    token = data.get("token")
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return jsonify({"error": "Token missing"}), 401
 
+    token = auth_header.split(" ")[1]
     user = verify_jwt(token)
     if not user:
         return jsonify({"error": "Invalid or expired token"}), 401
@@ -72,9 +66,15 @@ def add_car():
 #----------SHOW MY CARS----------
 @auth_bp.route('/my-cars', methods=['POST'])
 def my_cars():
-    data = request.get_json()
-    token = data.get("token")
+    # data = request.get_json()
+    # token = data.get("token")
 
+    # user = verify_jwt(token)
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return jsonify({"error": "Token missing"}), 401
+
+    token = auth_header.split(" ")[1]
     user = verify_jwt(token)
     if not user:
         return jsonify({"error": "Invalid or expired token"}), 401
@@ -185,7 +185,8 @@ def register_user():
         email=email,
         phone=phone,
         password_hash=password_hash,
-        is_verified=True
+        is_verified=True,
+        role = "customer"
     )
 
     db.session.add(new_user)
@@ -216,10 +217,14 @@ def login():
     if not check_password_hash(user.password_hash, password):
         return jsonify({"error": "Incorrect password"}), 401
     
+    if not user.is_active:
+        return jsonify({"error": "Account is suspended. Contact admin."}), 403
+    
     token = jwt.encode(
     {
         "user_id": user.user_id,
-        "exp": datetime.utcnow() + timedelta(hours=6)
+        "role": user.role,
+        "exp": datetime.utcnow() + timedelta(days = 90)
     },
     current_app.config['SECRET_KEY'],
     algorithm="HS256"
@@ -232,7 +237,8 @@ def login():
             "id": user.user_id,
             "name": user.name,
             "email": user.email,
-            "phone": user.phone
+            "phone": user.phone,
+            "role": user.role
         }
     }), 200
 

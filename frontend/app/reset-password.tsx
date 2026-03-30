@@ -16,7 +16,7 @@ export default function ResetPassword() {
     }
 
     try {
-      await axios.post("http://192.168.31.140:5000/auth/reset-password", {
+      await axios.post("http://192.168.31.81:5000/auth/reset-password", {
         token,
         new_password: newPassword,
       });

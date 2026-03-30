@@ -13,22 +13,23 @@ import axios from "axios";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Picker } from "@react-native-picker/picker";
+import { CAR_DATA, BRANDS, getModels } from "../cars";
 
 export default function AddCarScreen() {
-  const CAR_DATA = {
-    "Maruti Suzuki": [
-      "Swift",
-      "Baleno",
-      "Dzire",
-      "Brezza",
-      "WagonR",
-      "Alto",
-      "Ertiga",
-    ],
-    Hyundai: ["i20", "i10 Grand", "Creta", "Venue", "Verna", "Aura"],
-    Tata: ["Nexon", "Punch", "Altroz", "Harrier", "Safari", "Tiago"],
-    Honda: ["City", "Amaze", "Jazz", "WR-V"],
-  };
+  // const CAR_DATA = {
+  //   "Maruti Suzuki": [
+  //     "Swift",
+  //     "Baleno",
+  //     "Dzire",
+  //     "Brezza",
+  //     "WagonR",
+  //     "Alto",
+  //     "Ertiga",
+  //   ],
+  //   Hyundai: ["i20", "i10 Grand", "Creta", "Venue", "Verna", "Aura"],
+  //   Tata: ["Nexon", "Punch", "Altroz", "Harrier", "Safari", "Tiago"],
+  //   Honda: ["City", "Amaze", "Jazz", "WR-V"],
+  // };
 
   const PINCODES = ["560094", "560095", "560096"];
   const AREAS = ["KEB Layout", "Nagawara", "RT Nagar"];
@@ -44,7 +45,7 @@ export default function AddCarScreen() {
   const [regNumber, setRegNumber] = useState("");
   const [image, setImage] = useState("");
 
-  const API = "http://192.168.31.140:5000";
+  const API = "http://192.168.31.81:5000";
 
   useEffect(() => {
     (async () => {
@@ -112,9 +113,9 @@ export default function AddCarScreen() {
           {/* Pincode */}
           <Text style={styles.label}>Pincode</Text>
           <View style={styles.dropdownBox}>
-            <Picker selectedValue={pincode} onValueChange={setPincode}>
+            <Picker selectedValue={pincode} onValueChange={setPincode} style={{ color: "#000000" }} itemStyle={{ color: "#000000" }}>
               {PINCODES.map((pc) => (
-                <Picker.Item key={pc} label={pc} value={pc} />
+                <Picker.Item key={pc} label={pc} value={pc} color="#000000" />
               ))}
             </Picker>
           </View>
@@ -122,9 +123,9 @@ export default function AddCarScreen() {
           {/* Area */}
           <Text style={styles.label}>Area</Text>
           <View style={styles.dropdownBox}>
-            <Picker selectedValue={area} onValueChange={setArea}>
+            <Picker selectedValue={area} onValueChange={setArea} style={{ color: "#000000" }} itemStyle={{ color: "#000000" }}>
               {AREAS.map((ar) => (
-                <Picker.Item key={ar} label={ar} value={ar} />
+                <Picker.Item key={ar} label={ar} value={ar} color="#000000" />
               ))}
             </Picker>
           </View>
@@ -137,11 +138,11 @@ export default function AddCarScreen() {
               onValueChange={(value) => {
                 setMake(value);
                 setModel("");
-              }}
+              }} style={{ color: "#000000" }} itemStyle={{ color: "#000000" }}
             >
               <Picker.Item label="Select Make" value="" />
-              {Object.keys(CAR_DATA).map((brand) => (
-                <Picker.Item key={brand} label={brand} value={brand} />
+              {BRANDS.map((brand) => (
+                <Picker.Item key={brand} label={brand} value={brand} color="#000000" />
               ))}
             </Picker>
           </View>
@@ -149,12 +150,11 @@ export default function AddCarScreen() {
           {/* Model */}
           <Text style={styles.label}>Model</Text>
           <View style={styles.dropdownBox}>
-            <Picker selectedValue={model} onValueChange={setModel}>
+            <Picker selectedValue={model} onValueChange={setModel} style={{ color: "#000000" }} itemStyle={{ color: "#000000" }}>
               <Picker.Item label="Select Model" value="" />
-              {make !== "" &&
-                CAR_DATA[make as keyof typeof CAR_DATA].map((m) => (
-                  <Picker.Item key={m} label={m} value={m} />
-                ))}
+              {getModels(make).map((m: string) => (
+                <Picker.Item key={m} label={m} value={m} color="#000000" />
+              ))}  
             </Picker>
           </View>
 
@@ -163,6 +163,19 @@ export default function AddCarScreen() {
             value={color}
             onChangeText={setColor}
             style={styles.input}
+
+            textColor="#000000"
+            activeOutlineColor="#007bff"
+            underlineColor="#888888"
+            theme={
+              {
+                colors: {
+                  background: "#f2f2f2",
+                  text: "#000000",
+                  placeholder: "#444444"
+                },
+              }
+            }
           />
 
           <TextInput
@@ -170,10 +183,23 @@ export default function AddCarScreen() {
             value={regNumber}
             onChangeText={(t) => setRegNumber(t.toUpperCase())}
             style={styles.input}
+
+            textColor="#000000"
+            activeOutlineColor="#007bff"
+            underlineColor="#888888"
+            theme={
+              {
+                colors: {
+                  background: "#f2f2f2",
+                  text: "#000000",
+                  placeholder: "#444444"
+                },
+              }
+            }
           />
 
           <TouchableOpacity onPress={pickImage} style={styles.uploadBox}>
-            <Text style={{ color: "#555", fontWeight: "600" }}>
+            <Text style={{ color: "#1a1a1a", fontWeight: "600" }}>
               Upload Car Photo (Optional)
             </Text>
           </TouchableOpacity>
@@ -197,19 +223,20 @@ export default function AddCarScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#d3d3d3",
+    backgroundColor: "#e6e6e6",
     justifyContent: "center",
     padding: 20,
   },
 
   card: {
-    backgroundColor: "white",
+    backgroundColor: "#ffffff",
     padding: 22,
     borderRadius: 16,
     elevation: 4,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
 
   title: {
@@ -217,6 +244,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     marginBottom: 20,
+    color: "#1a1a1a",
   },
 
   label: {
@@ -224,26 +252,32 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     marginTop: 12,
     fontSize: 15,
+    color: "1a1a1a",
   },
 
   dropdownBox: {
     backgroundColor: "#f2f2f2",
+    color: "#000000",
     borderRadius: 8,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#d9d9d9",
   },
 
   input: {
     backgroundColor: "#f2f2f2",
     marginBottom: 12,
+    color: "#000000",
   },
 
   uploadBox: {
     padding: 12,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#bfbfbf",
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 12,
+    backgroundColor: "#fafafa",
   },
 
   preview: {

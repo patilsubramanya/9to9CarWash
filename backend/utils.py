@@ -16,19 +16,15 @@ def admin_token_required(f):
 
         if not token:
             return jsonify({'error': 'Token is missing!'}), 401
-
-        try:
-            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
-            role = data.get('role')
-            admin_id = data.get('admin_id')
-            if not role or role not in ('superadmin','staff'):
-                return jsonify({'error': 'Admin role required'}), 403
-        except jwt.ExpiredSignatureError:
-            return jsonify({'error': 'Token expired, please login again'}), 401
-        except Exception:
-            return jsonify({'error': 'Invalid token'}), 401
-
-        return f(admin_id, *args, **kwargs)
+        
+        user = verify_jwt(token)
+        if not user:
+            return jsonify({'error': 'Invalid token or user not found'}), 401
+        
+        if user.role != 'admin':
+            return jsonify({'error': 'Admin role required'}), 403
+        
+        return f(user.user_id, *args, **kwargs)
     return decorated
 
 def token_required(f):
@@ -65,16 +61,16 @@ def verify_jwt(token: str):
             algorithms=["HS256"]
         )
 
-        # Check expiry if included
-        if "exp" in payload and datetime.utcnow().timestamp() > payload["exp"]:
-            return None
-
         user_id = payload.get("user_id")
         if not user_id:
             return None
 
         # Return user from DB
         user = User.query.get(user_id)
+
+        if not user or not user.is_active:
+            return None
+        
         return user
 
     except jwt.ExpiredSignatureError:
@@ -84,3 +80,15 @@ def verify_jwt(token: str):
     except Exception as e:
         print("JWT Verify Error:", e)
         return None
+def get_user_from_header():
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return None
+
+    parts = auth.split(" ")
+    if len(parts) != 2:
+        return None
+
+    token = parts[1]
+    return verify_jwt(token)
+

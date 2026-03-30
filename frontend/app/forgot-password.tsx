@@ -7,7 +7,7 @@ import { Link } from "expo-router";
 export default function ForgotPassword() {
   const [emailOrPhone, setEmailOrPhone] = useState("");
 
-  const API = "http://192.168.31.140:5000";
+  const API = "http://192.168.31.81:5000";
 
   const handleSendOTP = async () => {
     if (!emailOrPhone) {
@@ -33,7 +33,7 @@ export default function ForgotPassword() {
     <View style={styles.page}>
       <View style={styles.card}>
         <Image
-          source={require("../../assets/images/logo.jpeg")}
+          source={require("../assets/images/logo.jpeg")}
           style={styles.logo}
         />
 

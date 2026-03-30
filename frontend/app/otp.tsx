@@ -17,7 +17,7 @@ export default function OTPScreen() {
   const params = useLocalSearchParams();
   const [otp, setOtp] = useState("");
 
-  const API = "http://192.168.31.140:5000";
+  const API = "http://192.168.31.81:5000";
 
   // Fade animation
   const fadeAnim = new Animated.Value(0);
@@ -60,7 +60,7 @@ export default function OTPScreen() {
     >
       <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
         <Image
-          source={require("../../assets/images/logo.jpeg")}
+          source={require("../assets/images/logo.jpeg")}
           style={styles.logo}
         />
 
